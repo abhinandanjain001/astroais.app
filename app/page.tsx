@@ -352,16 +352,15 @@ export default function Home() {
               <ArrowRight size={13} />
             </div>
             <h1>
-              A little clarity.
-              <br />A deeper connection.
+              Your personal
+              <br />astrology guide.
               <br />
-              <em>Written in the stars.</em>
+              <em>Clarity for every day.</em>
             </h1>
             <p>
-              A personal space for astrology, self-discovery, and the
-              <br className="desktop" /> questions that matter. Explore love,
-              purpose, and your
-              <br className="desktop" /> next chapter with a guide by your side.
+              Explore your personal birth chart and kundli, ask your
+              <br className="desktop" /> AI astrology guide about career and relationships,
+              and build a daily ritual with free advice and goals.
             </p>
             <div className="hero-actions">
               <button
@@ -878,7 +877,7 @@ export default function Home() {
           <Orbit size={24} />
           astrois<span className="logo-app">.app</span>
         </a>
-        <p>A little closer to yourself.</p>
+        <nav className="seo-footer-links" aria-label="Explore Astrois"><a href="/birth-chart">Birth charts &amp; kundli</a><a href="/astrology-chat">AI astrology chat</a><a href="/daily-advice">Free daily advice</a></nav>
         <span>© {new Date().getFullYear()} Astrois</span>
         <button onClick={() => setModal("about")}>
           About the experience <ArrowUpRight size={12} />
