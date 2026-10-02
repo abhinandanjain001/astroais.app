@@ -14,9 +14,13 @@ export async function verifyFirebaseUser(request: Request, keyResolver: JWTVerif
   const now = Math.floor(Date.now() / 1000);
   if (!payload.sub || payload.sub.length > 128 || typeof payload.iat !== 'number' || payload.iat > now ||
       typeof payload.auth_time !== 'number' || payload.auth_time > now) throw new Error('Invalid identity');
+  const provider = (payload.firebase as { sign_in_provider?: string } | undefined)?.sign_in_provider;
+  if (provider !== 'google.com' || payload.email_verified !== true || typeof payload.email !== 'string') {
+    throw new Error('Verified Google sign-in required');
+  }
   return { uid: payload.sub };
 }
 
-export const signInRequired = () => Response.json({ error: 'Please sign in again to continue your conversation.' }, {
+export const signInRequired = () => Response.json({ error: 'Please sign in with Google to continue.' }, {
   status: 401, headers: { 'Cache-Control': 'no-store' },
 });

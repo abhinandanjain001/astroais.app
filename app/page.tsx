@@ -197,7 +197,7 @@ export default function Home() {
       const response = await fetch("/api/birth-chart", {
         signal: AbortSignal.any([controller.signal, AbortSignal.timeout(15000)]),
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${await auth.user.getIdToken()}` },
         body: JSON.stringify({
           firstName: firstName.trim(),
           birth,
@@ -207,6 +207,7 @@ export default function Home() {
       });
       const data = (await response.json()) as { error?: string; timezone?: string; natal?: {body:string;sign:string}[]; kundli?: Kundli | null };
       if (controller.signal.aborted) return;
+      if (response.status === 401) auth.openAccount();
       if (!response.ok)
         throw new Error(data.error || "We could not calculate your chart.");
       setProfileReady(true);

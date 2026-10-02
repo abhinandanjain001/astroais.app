@@ -1,7 +1,9 @@
+import { verifyFirebaseUser, signInRequired } from '@/lib/server/firebase-auth';
 import { calculateChart } from '@/lib/server/chart';
 
 export async function POST(request: Request) {
   if (request.headers.get('origin') !== new URL(request.url).origin) return Response.json({ error: 'Please use the Astrois website.' }, { status: 403 });
+  try { await verifyFirebaseUser(request); } catch { return signInRequired(); }
   const raw = await request.text();
   if (raw.length > 4096) return Response.json({ error: 'Birth profile is too large.' }, { status: 413 });
   try {
