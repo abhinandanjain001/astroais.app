@@ -13,3 +13,9 @@ Firebase Authentication (`astroais`) provides email/password registration, login
 Conversation history stays in browser memory and the most recent bounded history is sent to OpenRouter with first name and calculated chart context. There is no application database of conversations. OpenRouter and selected providers have their own retention policies. Birth positions are geocentric tropical positions from Astronomy Engine, with timezone inferred by tz-lookup and Luxon. District selection and historical timezone boundaries limit precision. No Vedic kundli, houses, ascendant, dashas or exact event prediction is implemented.
 
 Validation: `node --test tests/chat.test.mjs tests/payments.test.mjs`, `npx tsc --noEmit`, `npm run build`.
+
+## Local astrology fallback
+
+When free AI endpoints fail, exhaust quota, rate-limit, or exceed the 24-second retry budget, chat returns a shorter rule-based response from the freshly calculated birth chart. Replies include `source: astrology-engine` and tell users that local mode is active. Natal placements, current daily factors, and topic-specific timing windows come from Astronomy Engine calculations; the fallback does not invent event dates. Existing authentication, trial/pass expiry, validation, and application anti-abuse limits remain in force. Local mode needs the session-signing secret but does not require an AI key. AI content refusals are preserved.
+
+Run coverage with `node --experimental-strip-types --test tests/astrology-fallback.test.mjs tests/firebase-auth.test.mjs`.

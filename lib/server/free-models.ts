@@ -14,7 +14,7 @@ export async function freeCompletion(key: string, messages: { role: string; cont
         method: 'POST',
         headers: { Authorization: 'Bearer ' + key, 'Content-Type': 'application/json', 'HTTP-Referer': 'https://astroais.app', 'X-Title': 'Astrois' },
         body: JSON.stringify({ model, max_tokens: 900, temperature: 0.65, reasoning: { enabled: false }, provider: { allow_fallbacks: true, max_price: { prompt: 0, completion: 0 } }, messages }),
-        signal: AbortSignal.any([signal, AbortSignal.timeout(18000)]),
+        signal: AbortSignal.any([signal, AbortSignal.timeout(8000)]),
       });
       // Switching models cannot fix credentials, account quota, or privacy settings.
       if ([401, 402, 403].includes(response.status) || (response.status === 429 && response.headers.has('x-ratelimit-limit'))) {

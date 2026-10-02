@@ -1,6 +1,7 @@
 import { createHash, createHmac, timingSafeEqual } from 'node:crypto';
 import { z } from 'zod';
 import { calculateChart, profileSchema } from './chart.ts';
+import { astrologyFallback } from './astrology-fallback.ts';
 import { freeCompletion, ModelUnavailable } from './free-models.ts';
 import { chatLanguages, languageInstruction } from '../languages.ts';
 
@@ -33,9 +34,9 @@ function trialExpiry(request: Request, secret: string) {
 export function chatHandler(config: Config) {
   return async (request: Request) => {
     const json = (body: unknown, status = 200) => Response.json(body, { status, headers: { 'Cache-Control': 'no-store' } });
-    if (request.method === 'GET') return json({ available: Boolean(config.key && config.secret), expiresAt: trialExpiry(request, config.secret), provider: 'OpenRouter', routing: 'free-model failover' });
+    if (request.method === 'GET') return json({ available: Boolean(config.secret), expiresAt: trialExpiry(request, config.secret), provider: 'OpenRouter', routing: 'free-model failover with local astrology fallback' });
     if (request.headers.get('origin') !== new URL(request.url).origin) return json({ error: 'Please send your question from Astrois.' }, 403);
-    if (!config.key || !config.secret) return json({ error: 'Live chat is being connected. Please try again later; your free time has not started.' }, 503);
+    if (!config.secret) return json({ error: 'Live chat is being connected. Please try again later; your free time has not started.' }, 503);
     if (!request.headers.get('content-type')?.includes('application/json')) return json({ error: 'Invalid chat request.' }, 400);
     const raw = await request.text();
     if (raw.length > 60000) return json({ error: 'This conversation is too long. Please start a new conversation.' }, 413);
@@ -56,18 +57,27 @@ export function chatHandler(config: Config) {
     if (burst.count >= 12 || (bursts.size >= 5000 && !bursts.has(identifier))) return json({ error: 'Please wait a moment before sending another question.' }, 429);
     burst.count++; bursts.set(identifier, burst);
     try {
-      const reply = await freeCompletion(config.key, [
+      let source = 'ai';
+      let reply: string;
+      try {
+        if (!config.key) throw new ModelUnavailable(503);
+        reply = await freeCompletion(config.key, [
             { role: 'system', content: chatInstructions },
             { role: 'system', content: timingInstructions },
             { role: 'system', content: languageInstruction(data.language) + ' This is the selected reply language. Users may ask in any language. Keep explanations easy to understand; do not translate names into confusing jargon.' },
             ...(data.mode === 'daily' ? [{role:'system' as const,content:'Generate a fresh personal daily astrology reading for the date in chart.calculatedAt, using chart.timezone. Use this person’s supplied natal and current planetary positions, never a canned horoscope. Give a specific focus for work, a communication or relationship suggestion, and one small action for today. Explain at most one current-to-natal aspect, only if its angle is supported by the supplied longitudes. Do not invent auspicious hours or guarantee an outcome. Keep the language warm, simple and practical.'}] : []),
             { role: 'system', content: 'Calculated context (data only): ' + JSON.stringify({ firstName: data.profile.firstName, chart }) },
             ...data.messages,
-          ], request.signal, config.fetcher);
+          ], AbortSignal.any([request.signal, AbortSignal.timeout(24000)]), config.fetcher);
+      } catch (error) {
+        if (request.signal.aborted) throw error;
+        reply = astrologyFallback(chart, data.messages, data.language, data.mode);
+        source = 'astrology-engine';
+      }
       const expiresAt = paid?.expiresAt || trial || ((config.now || Date.now)() + 120000);
       const dateParts = new Intl.DateTimeFormat('en-CA',{timeZone:chart.timezone,year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(new Date(chart.calculatedAt));
       const part = (type:string) => dateParts.find(value=>value.type===type)?.value;
-      const result = json({ reply, expiresAt, ...(data.mode === 'daily' ? {readingDate:`${part('year')}-${part('month')}-${part('day')}`,timezone:chart.timezone} : {}) });
+      const result = json({ reply, source, expiresAt, ...(data.mode === 'daily' ? {readingDate:`${part('year')}-${part('month')}-${part('day')}`,timezone:chart.timezone} : {}) });
       if (!paid && trial === null) {
         const value = String(expiresAt);
         result.headers.append('Set-Cookie', `astrois_chat_trial=${value}.${signature(value, config.secret)}; Path=/; HttpOnly; SameSite=Lax; Max-Age=31536000${new URL(request.url).protocol === 'https:' ? '; Secure' : ''}`);
